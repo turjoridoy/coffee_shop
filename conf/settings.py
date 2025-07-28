@@ -136,11 +136,7 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
-# Add whitenoise middleware for static files
-MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
-
-# Static files configuration
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# Static files configuration - using Django's default storage
 
 # Media files
 MEDIA_URL = "/media/"
