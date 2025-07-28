@@ -1,0 +1,523 @@
+// Coffee Shop Manager - Sales Focused PWA
+let isOnline = navigator.onLine;
+
+// PWA Installation
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent Chrome 67 and earlier from automatically showing the prompt
+    e.preventDefault();
+    // Stash the event so it can be triggered later
+    deferredPrompt = e;
+    // Show the install button
+    const installButton = document.getElementById('installButton');
+    if (installButton) {
+        installButton.style.display = 'block';
+    }
+});
+
+// Handle install button click
+document.addEventListener('DOMContentLoaded', function () {
+    const installButton = document.getElementById('installButton');
+    if (installButton) {
+        installButton.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                // Show the install prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to the install prompt: ${outcome}`);
+                // Clear the deferredPrompt variable
+                deferredPrompt = null;
+                // Hide the install button
+                installButton.style.display = 'none';
+            }
+        });
+    }
+});
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then((registration) => {
+                console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+                console.log('SW registration failed: ', registrationError);
+            });
+    });
+}
+
+// Initialize app
+document.addEventListener('DOMContentLoaded', function () {
+    loadDashboardData();
+    loadTodaySalesCount();
+    loadCategories();
+    loadPaymentMethods();
+    updateConnectionStatus();
+
+    // Event listeners
+    window.addEventListener('online', updateConnectionStatus);
+    window.addEventListener('offline', updateConnectionStatus);
+
+    // Form event listeners
+    document.getElementById('saleQuantity').addEventListener('input', calculateSaleTotal);
+    document.getElementById('salePrice').addEventListener('input', calculateSaleTotal);
+});
+
+// API Request function
+async function apiRequest(endpoint, options = {}) {
+    const baseUrl = window.location.origin;
+    const url = `${baseUrl}/api${endpoint}`;
+
+    const defaultOptions = {
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+    };
+
+    const finalOptions = { ...defaultOptions, ...options };
+
+    try {
+        const response = await fetch(url, finalOptions);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('API request failed:', error);
+        throw error;
+    }
+}
+
+// Get CSRF token from Django
+function getCSRFToken() {
+    const token = document.querySelector('[name=csrfmiddlewaretoken]');
+    return token ? token.value : '';
+}
+
+// Load categories from API
+async function loadCategories() {
+    try {
+        const response = await apiRequest('/categories/');
+        console.log('Categories API response:', response);
+
+        // Handle different response formats
+        const categories = Array.isArray(response) ? response : (response.results || []);
+
+        const categorySelect = document.getElementById('saleCategory');
+
+        // Clear existing options
+        categorySelect.innerHTML = '<option value="">Select Category</option>';
+
+        // Add categories from API
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.id;
+            option.textContent = category.name;
+            categorySelect.appendChild(option);
+        });
+
+        console.log('Categories loaded:', categories.length);
+    } catch (error) {
+        console.error('Failed to load categories:', error);
+        showAlert('Failed to load categories', 'warning');
+    }
+}
+
+// Load payment methods from API
+async function loadPaymentMethods() {
+    try {
+        const response = await apiRequest('/payment-methods/');
+        console.log('Payment methods API response:', response);
+
+        // Handle different response formats
+        const paymentMethods = Array.isArray(response) ? response : (response.results || []);
+
+        const paymentSelect = document.getElementById('salePayment');
+
+        // Clear existing options
+        paymentSelect.innerHTML = '';
+
+        // Add payment methods from API
+        paymentMethods.forEach((method, index) => {
+            const option = document.createElement('option');
+            option.value = method.id;
+            option.textContent = method.name;
+            paymentSelect.appendChild(option);
+
+            // Select the first payment method by default
+            if (index === 0) {
+                option.selected = true;
+            }
+        });
+
+        console.log('Payment methods loaded:', paymentMethods.length);
+    } catch (error) {
+        console.error('Failed to load payment methods:', error);
+        showAlert('Failed to load payment methods', 'warning');
+    }
+}
+
+// Update connection status
+function updateConnectionStatus() {
+    isOnline = navigator.onLine;
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+
+    if (isOnline) {
+        statusDot.className = 'status-dot online';
+        statusText.textContent = 'Online';
+    } else {
+        statusDot.className = 'status-dot offline';
+        statusText.textContent = 'Offline';
+    }
+}
+
+// Tab management
+function showTab(tabName) {
+    // Hide all tab contents
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabContents.forEach(content => content.classList.remove('active'));
+
+    // Remove active class from all nav tabs
+    const navTabs = document.querySelectorAll('.nav-tab');
+    navTabs.forEach(tab => tab.classList.remove('active'));
+
+    // Remove active class from bottom nav items
+    const bottomNavItems = document.querySelectorAll('.bottom-nav-item');
+    bottomNavItems.forEach(item => item.classList.remove('active'));
+
+    // Show selected tab
+    document.getElementById(tabName).classList.add('active');
+
+    // Add active class to corresponding nav tab
+    const activeNavTab = document.querySelector(`[onclick="showTab('${tabName}')"]`);
+    if (activeNavTab) {
+        activeNavTab.classList.add('active');
+    }
+
+    // Add active class to corresponding bottom nav item
+    const activeBottomNavItem = document.querySelector(`.bottom-nav-item[onclick="showTab('${tabName}')"]`);
+    if (activeBottomNavItem) {
+        activeBottomNavItem.classList.add('active');
+    }
+
+    // Load data based on tab
+    if (tabName === 'dashboard') {
+        loadDashboardData();
+    } else if (tabName === 'today') {
+        loadTodaysSales();
+    } else if (tabName === 'reports') {
+        loadReports();
+    }
+}
+
+// Load dashboard data
+async function loadDashboardData() {
+    try {
+        const data = await apiRequest('/dashboard-data/');
+
+        // Update summary
+        document.getElementById('todaySales').textContent = data.today_total.toLocaleString();
+        document.getElementById('todayTransactions').textContent = data.today_count;
+        document.getElementById('monthlyRevenue').textContent = data.monthly_total.toLocaleString();
+
+        // Display recent sales
+        displayRecentSales(data.recent_sales);
+
+    } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+        showAlert('Failed to load dashboard data', 'error');
+    }
+}
+
+// Load today's sales count
+async function loadTodaySalesCount() {
+    try {
+        const data = await apiRequest('/today-sales-count/');
+        displayTodaySalesCount(data);
+    } catch (error) {
+        console.error('Failed to load today\'s sales count:', error);
+        showAlert('Failed to load today\'s sales count', 'error');
+    }
+}
+
+// Display today's sales count
+function displayTodaySalesCount(data) {
+    document.getElementById('todaySales').textContent = `৳${data.today_total.toLocaleString()}`;
+    document.getElementById('todayTransactions').textContent = data.today_count;
+}
+
+// Display recent sales
+function displayRecentSales(sales) {
+    const container = document.getElementById('recentSalesContainer');
+    const loading = document.getElementById('recentSalesLoading');
+    const tbody = document.getElementById('recentSalesBody');
+
+    if (sales.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #666;">No sales recorded yet</td></tr>';
+    } else {
+        tbody.innerHTML = sales.map(sale => `
+            <tr>
+                <td>${new Date(sale.created_at).toLocaleTimeString()}</td>
+                <td>${sale.item_name}</td>
+                <td>${sale.quantity}</td>
+                <td>৳${sale.total_amount}</td>
+            </tr>
+        `).join('');
+    }
+
+    loading.style.display = 'none';
+    container.style.display = 'block';
+}
+
+// Sales Functions
+function calculateSaleTotal() {
+    const quantity = parseFloat(document.getElementById('saleQuantity').value) || 0;
+    const price = parseFloat(document.getElementById('salePrice').value) || 0;
+    document.getElementById('saleTotal').value = (quantity * price).toFixed(2);
+}
+
+async function addSale(event) {
+    event.preventDefault();
+
+    // Get form values before resetting
+    const itemName = document.getElementById('saleItem').value;
+    const categoryId = document.getElementById('saleCategory').value;
+    const quantity = document.getElementById('saleQuantity').value;
+    const unitPrice = document.getElementById('salePrice').value;
+    const paymentMethodId = document.getElementById('salePayment').value;
+    const customerName = document.getElementById('saleCustomerName')?.value || '';
+    const customerPhone = document.getElementById('saleCustomerPhone')?.value || '';
+    const notes = document.getElementById('saleNotes')?.value || '';
+
+    // Validate required fields
+    if (!itemName || !categoryId || !quantity || !unitPrice || !paymentMethodId) {
+        showAlert('Please fill in all required fields', 'error');
+        return;
+    }
+
+    // Additional validation for dropdowns
+    if (categoryId === '' || paymentMethodId === '') {
+        showAlert('Please select a category and payment method', 'error');
+        return;
+    }
+
+    const sale = {
+        item_name: itemName,
+        category: parseInt(categoryId),
+        quantity: parseInt(quantity),
+        unit_price: parseFloat(unitPrice),
+        payment_method: parseInt(paymentMethodId),
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        notes: notes
+    };
+
+    console.log('Sending sale data:', sale);
+    console.log('Category ID type:', typeof sale.category, 'Value:', sale.category);
+    console.log('Payment Method ID type:', typeof sale.payment_method, 'Value:', sale.payment_method);
+
+    try {
+        await apiRequest('/sales/', {
+            method: 'POST',
+            body: JSON.stringify(sale)
+        });
+
+        showToast('Sale added successfully! 🎉');
+
+        // Reset form
+        document.getElementById('saleForm').reset();
+
+        // Reload categories and payment methods to restore defaults
+        loadCategories();
+        loadPaymentMethods();
+
+        // Reload dashboard data
+        loadDashboardData();
+        loadTodaySalesCount();
+
+    } catch (error) {
+        console.error('Failed to add sale:', error);
+        showToast('Failed to add sale. Please try again.', 'error');
+    }
+}
+
+function showQuickSale(item, price) {
+    document.getElementById('saleItem').value = item;
+    document.getElementById('salePrice').value = price;
+    document.getElementById('saleQuantity').value = 1;
+    calculateSaleTotal();
+
+    // Auto-select category based on item
+    const categorySelect = document.getElementById('saleCategory');
+    const itemLower = item.toLowerCase();
+
+    // Find and select the appropriate category
+    for (let option of categorySelect.options) {
+        const categoryName = option.textContent.toLowerCase();
+        if (itemLower.includes('coffee') && categoryName.includes('coffee')) {
+            option.selected = true;
+            break;
+        } else if (itemLower.includes('tea') && categoryName.includes('tea')) {
+            option.selected = true;
+            break;
+        } else if (itemLower.includes('samosa') && categoryName.includes('snack')) {
+            option.selected = true;
+            break;
+        }
+    }
+
+    // Switch to sales tab
+    showTab('sales');
+
+    // Focus on item name field
+    document.getElementById('saleItem').focus();
+}
+
+// Load today's sales
+async function loadTodaysSales() {
+    try {
+        const data = await apiRequest('/sales/today/');
+        displayTodaysSales(data);
+    } catch (error) {
+        console.error('Failed to load today\'s sales:', error);
+        showAlert('Failed to load today\'s sales', 'error');
+    }
+}
+
+function displayTodaysSales(sales) {
+    const container = document.getElementById('todaySalesContainer');
+    const loading = document.getElementById('todaySalesLoading');
+    const tbody = document.getElementById('todaySalesBody');
+
+    if (sales.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #666;">No sales today</td></tr>';
+    } else {
+        tbody.innerHTML = sales.map(sale => `
+            <tr>
+                <td>${new Date(sale.created_at).toLocaleTimeString()}</td>
+                <td>${sale.item_name}</td>
+                <td>${sale.quantity}</td>
+                <td>৳${sale.total_amount}</td>
+            </tr>
+        `).join('');
+    }
+
+    loading.style.display = 'none';
+    container.style.display = 'block';
+}
+
+// Load reports data
+async function loadReports() {
+    try {
+        const data = await apiRequest('/dashboard-data/');
+
+        // Generate summary text
+        generateSummaryText(data);
+
+        // Show reports container
+        document.getElementById('reportsLoading').style.display = 'none';
+        document.getElementById('reportsContainer').style.display = 'block';
+
+    } catch (error) {
+        console.error('Failed to load reports:', error);
+        showAlert('Failed to load reports', 'error');
+    }
+}
+
+
+
+// Generate summary text for copying
+function generateSummaryText(data) {
+    const today = new Date().toLocaleDateString();
+    let summaryText = `📊 Coffee Shop Daily Report - ${today}\n\n`;
+
+    // Summary section
+    summaryText += `📈 SUMMARY:\n`;
+    summaryText += `• Today's Sales: ৳${data.today_total.toLocaleString()}\n`;
+    summaryText += `• Transactions: ${data.today_count}\n`;
+    summaryText += `• Monthly Revenue: ৳${data.monthly_total.toLocaleString()}\n\n`;
+
+    // Category breakdown
+    if (data.category_breakdown && data.category_breakdown.length > 0) {
+        summaryText += `📋 CATEGORY BREAKDOWN:\n`;
+        data.category_breakdown.forEach(category => {
+            summaryText += `• ${category.category__name || 'Unknown'}: ${category.count} sales (৳${category.total.toLocaleString()})\n`;
+        });
+    } else {
+        summaryText += `📋 CATEGORY BREAKDOWN:\n• No category data available\n`;
+    }
+
+    // Payment method breakdown
+    if (data.payment_breakdown && data.payment_breakdown.length > 0) {
+        summaryText += `\n💳 PAYMENT METHODS:\n`;
+        data.payment_breakdown.forEach(payment => {
+            summaryText += `• ${payment.payment_method__name || 'Unknown'}: ${payment.count} transactions (৳${payment.total.toLocaleString()})\n`;
+        });
+    }
+
+    document.getElementById('summaryText').value = summaryText;
+}
+
+// Copy summary to clipboard
+async function copySummary() {
+    const summaryText = document.getElementById('summaryText').value;
+
+    try {
+        await navigator.clipboard.writeText(summaryText);
+        showAlert('Summary copied to clipboard!', 'success');
+    } catch (error) {
+        // Fallback for older browsers
+        const textArea = document.getElementById('summaryText');
+        textArea.select();
+        document.execCommand('copy');
+        showAlert('Summary copied to clipboard!', 'success');
+    }
+}
+
+// Utility Functions
+function showAlert(message, type = 'info') {
+    // Create alert element
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    alert.textContent = message;
+
+    // Add to page
+    document.body.appendChild(alert);
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+        alert.remove();
+    }, 3000);
+}
+
+// Toast Notification Function
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toast-message');
+
+    // Set message
+    toastMessage.textContent = message;
+
+    // Set icon based on type
+    const toastIcon = toast.querySelector('.toast-icon');
+    if (type === 'error') {
+        toastIcon.textContent = '❌';
+    } else if (type === 'warning') {
+        toastIcon.textContent = '⚠️';
+    } else {
+        toastIcon.textContent = '✅';
+    }
+
+    // Show toast
+    toast.classList.add('show');
+
+    // Hide after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}

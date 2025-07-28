@@ -1,0 +1,249 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2c5aa0">
+    <meta name="description" content="Coffee Shop Manager - Sales Management System">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Coffee Shop">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <title>Coffee Shop Manager</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{% url 'manifest' %}">
+
+    <!-- Icons for different platforms -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'icons/icon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'icons/icon-16x16.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'icons/icon-192x192.png' %}">
+
+    <!-- Django CSRF Token -->
+    {% csrf_token %}
+
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>☕ Coffee Shop Manager</h1>
+            <p>Sales Management System</p>
+            <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 10px;">
+                <button id="installButton" class="btn btn-primary"
+                    style="padding: 8px 16px; font-size: 0.9rem; display: none;">📱 Install App</button>
+                <a href="{% url 'logout' %}" class="btn btn-secondary"
+                    style="padding: 8px 16px; font-size: 0.9rem;">Logout</a>
+            </div>
+        </header>
+
+        <!-- Status bar -->
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Loading...</span>
+            </div>
+        </div>
+
+        <!-- Navigation tabs -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('dashboard')">Dashboard</button>
+            <button class="nav-tab" onclick="showTab('sales')">Add Sale</button>
+            <button class="nav-tab" onclick="showTab('today')">Today's Sales</button>
+            <button class="nav-tab" onclick="showTab('reports')">Reports</button>
+        </nav>
+
+        <!-- Content area -->
+        <main class="content-area">
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content active">
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="summary-value">৳<span id="todaySales">0</span></div>
+                        <div class="summary-label">Today's Sales</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value"><span id="todayTransactions">0</span></div>
+                        <div class="summary-label">Transactions</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-value">৳<span id="monthlyRevenue">0</span></div>
+                        <div class="summary-label">Monthly Revenue</div>
+                    </div>
+                </div>
+
+                <!-- Recent sales -->
+                <div class="card">
+                    <h3>Recent Sales</h3>
+                    <div class="loading" id="recentSalesLoading">Loading recent sales...</div>
+                    <div class="table-container" id="recentSalesContainer" style="display: none;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Item</th>
+                                    <th>Qty</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentSalesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sales Tab -->
+            <div id="sales" class="tab-content">
+                <div class="card">
+                    <h3>Add New Sale</h3>
+                    <form id="saleForm" onsubmit="addSale(event)">
+                        <div class="form-row keep-two-col">
+                            <div class="form-group">
+                                <label class="form-label">Category</label>
+                                <select id="saleCategory" class="form-input" required>
+                                    <option value="">Select Category</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Payment Method</label>
+                                <select id="salePayment" class="form-input" required>
+                                    <option value="">Select Payment</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Item Name</label>
+                            <input type="text" id="saleItem" class="form-input" placeholder="Enter item name" required>
+                        </div>
+
+                        <div class="form-row keep-two-col">
+                            <div class="form-group">
+                                <label class="form-label">Quantity</label>
+                                <input type="number" id="saleQuantity" class="form-input" min="1" placeholder="1"
+                                    required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Unit Price (৳)</label>
+                                <input type="number" id="salePrice" class="form-input" min="0" step="0.01"
+                                    placeholder="0.00" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row keep-two-col">
+                            <div class="form-group">
+                                <label class="form-label">Total (৳)</label>
+                                <input type="number" id="saleTotal" class="form-input" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Customer Name</label>
+                                <input type="text" id="saleCustomerName" class="form-input"
+                                    placeholder="Customer name (optional)">
+                            </div>
+                        </div>
+
+                        <div class="form-row keep-two-col">
+                            <div class="form-group">
+                                <label class="form-label">Customer Phone</label>
+                                <input type="tel" id="saleCustomerPhone" class="form-input"
+                                    placeholder="Phone number (optional)">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Notes</label>
+                                <input type="text" id="saleNotes" class="form-input"
+                                    placeholder="Additional notes (optional)">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-full">Add Sale</button>
+                    </form>
+                </div>
+
+                <!-- Quick actions -->
+                <div class="card">
+                    <h3>Quick Actions</h3>
+                    <button class="btn btn-primary btn-full" onclick="showQuickSale('Coffee', 25)">☕ Coffee -
+                        ৳25</button>
+                    <button class="btn btn-primary btn-full" onclick="showQuickSale('Tea', 30)">🍵 Tea - ৳30</button>
+                    <button class="btn btn-primary btn-full" onclick="showQuickSale('Samosa', 15)">🥟 Samosa -
+                        ৳15</button>
+                </div>
+            </div>
+
+            <!-- Today's Sales Tab -->
+            <div id="today" class="tab-content">
+                <div class="card">
+                    <h3>Today's Sales</h3>
+                    <div class="loading" id="todaySalesLoading">Loading today's sales...</div>
+                    <div class="table-container" id="todaySalesContainer" style="display: none;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Item</th>
+                                    <th>Qty</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="todaySalesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div id="reports" class="tab-content">
+                <div class="card">
+                    <h3>Copy Summary</h3>
+                    <div class="loading" id="reportsLoading">Loading report...</div>
+                    <div id="reportsContainer" style="display: none;">
+                        <div class="form-group">
+                            <textarea id="summaryText" class="form-input" rows="12" readonly
+                                placeholder="Summary will appear here..."></textarea>
+                        </div>
+                        <button class="btn btn-primary btn-full" onclick="copySummary()">📋 Copy Summary</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom navigation (mobile only) -->
+        <nav class="bottom-nav">
+            <div class="bottom-nav-item active" onclick="showTab('dashboard')">
+                <div class="bottom-nav-icon">📊</div>
+                <div>Dashboard</div>
+            </div>
+            <div class="bottom-nav-item" onclick="showTab('sales')">
+                <div class="bottom-nav-icon">💰</div>
+                <div>Add Sale</div>
+            </div>
+            <div class="bottom-nav-item" onclick="showTab('today')">
+                <div class="bottom-nav-icon">📋</div>
+                <div>Today</div>
+            </div>
+            <div class="bottom-nav-item" onclick="showTab('reports')">
+                <div class="bottom-nav-icon">📈</div>
+                <div>Reports</div>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <div class="toast-content">
+            <div class="toast-icon">✅</div>
+            <div class="toast-message" id="toast-message">Sale added successfully!</div>
+        </div>
+        <div class="toast-progress"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{% static 'js/app.js' %}"></script>
+</body>
+
+</html>

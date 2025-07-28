@@ -1,0 +1,64 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Coffee Shop Manager</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>☕ Coffee Shop Manager</h1>
+            <p>Login to continue</p>
+        </header>
+
+        <!-- Login Form -->
+        <main class="content-area">
+            <div class="card" style="max-width: 400px; margin: 50px auto;">
+                <h3>Login</h3>
+
+                {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    {% if form.non_field_errors %}
+                    {% for error in form.non_field_errors %}
+                    {{ error }}
+                    {% endfor %}
+                    {% else %}
+                    Invalid phone number or password. Please try again.
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label class="form-label">Phone Number</label>
+                        <input type="tel" name="username" class="form-input" placeholder="Enter phone number" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" name="password" class="form-input" placeholder="Enter password" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-full">Login</button>
+                </form>
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>
