@@ -152,6 +152,9 @@ STATICFILES_DIRS = [
 # For subdirectory deployment
 FORCE_SCRIPT_NAME = '/coffee_shop'
 
+# Add subdirectory to static URL
+STATIC_URL = '/coffee_shop/static/'
+
 # Static files configuration - using Django's default storage
 
 # Media files
