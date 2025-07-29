@@ -30,19 +30,30 @@ function showInstallBanner() {
 }
 
 window.addEventListener('beforeinstallprompt', (e) => {
+    console.log('beforeinstallprompt event fired');
     // Prevent Chrome 67 and earlier from automatically showing the prompt
     e.preventDefault();
     // Stash the event so it can be triggered later
     deferredPrompt = e;
 
+    console.log('Install prompt available, deferredPrompt set');
+
     // Show the install button
     const installButton = document.getElementById('installButton');
     if (installButton) {
         installButton.style.display = 'block';
+        console.log('Install button shown');
     }
 
     // Show banner for first-time visitors
     showInstallBanner();
+});
+
+// Debug: Log when app is installed
+window.addEventListener('appinstalled', (evt) => {
+    console.log('App was installed successfully');
+    showToast('App installed successfully! 🎉', 'success');
+    hideAllInstallElements();
 });
 
 // Handle install button click
@@ -83,9 +94,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Trigger installation
 async function triggerInstall() {
-    if (!deferredPrompt) return;
+    console.log('triggerInstall called, deferredPrompt:', !!deferredPrompt);
+    if (!deferredPrompt) {
+        console.log('No deferredPrompt available');
+        showToast('Install prompt not available. Please refresh the page.', 'error');
+        return;
+    }
 
     try {
+        console.log('Showing install prompt...');
         // Show the install prompt
         deferredPrompt.prompt();
         // Wait for the user to respond to the prompt
@@ -93,10 +110,12 @@ async function triggerInstall() {
         console.log(`User response to the install prompt: ${outcome}`);
 
         if (outcome === 'accepted') {
+            console.log('Installation accepted by user');
             showToast('App installed successfully! 🎉', 'success');
             // Hide all install elements
             hideAllInstallElements();
         } else {
+            console.log('Installation cancelled by user');
             showToast('Installation cancelled', 'warning');
         }
 
@@ -176,18 +195,57 @@ document.addEventListener('DOMContentLoaded', function () {
 // Register service worker
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
+        navigator.serviceWorker.register('/service-worker.js', {
+            scope: '/'
+        })
             .then((registration) => {
-                console.log('SW registered: ', registration);
+                console.log('SW registered successfully: ', registration);
+
+                // Check if there's an update available
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            console.log('New service worker available');
+                        }
+                    });
+                });
             })
             .catch((registrationError) => {
-                console.log('SW registration failed: ', registrationError);
+                console.error('SW registration failed: ', registrationError);
+                // Try to register without scope if it fails
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('SW registered without scope: ', registration);
+                    })
+                    .catch((error) => {
+                        console.error('SW registration completely failed: ', error);
+                    });
             });
     });
 }
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function () {
+    // Debug: Check if manifest is accessible
+    fetch('/manifest.json')
+        .then(response => {
+            if (response.ok) {
+                console.log('Manifest is accessible');
+                return response.json();
+            } else {
+                console.error('Manifest not accessible:', response.status);
+            }
+        })
+        .then(manifest => {
+            if (manifest) {
+                console.log('Manifest loaded:', manifest.name);
+            }
+        })
+        .catch(error => {
+            console.error('Failed to load manifest:', error);
+        });
+
     loadDashboardData();
     loadTodaySalesCount();
     loadStockData();

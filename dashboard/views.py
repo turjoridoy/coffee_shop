@@ -15,9 +15,8 @@ def dashboard(request):
     return render(request, "dashboard/index.html")
 
 
-@login_required(login_url="/login/")
 def manifest(request):
-    """Serve PWA manifest"""
+    """Serve PWA manifest - no login required for PWA to work"""
     manifest_data = {
         "name": "Coffee Shop Manager",
         "short_name": "Coffee Shop",
@@ -109,9 +108,8 @@ def manifest(request):
     return JsonResponse(manifest_data, content_type="application/manifest+json")
 
 
-@login_required(login_url="/login/")
 def browserconfig(request):
-    """Serve browserconfig.xml for Windows tiles"""
+    """Serve browserconfig.xml for Windows tiles - no login required"""
     from django.http import HttpResponse
     browserconfig_content = """<?xml version="1.0" encoding="utf-8"?>
 <browserconfig>
@@ -126,9 +124,8 @@ def browserconfig(request):
     return HttpResponse(browserconfig_content, content_type="application/xml")
 
 
-@login_required(login_url="/login/")
 def service_worker(request):
-    """Serve service worker"""
+    """Serve service worker - no login required for PWA to work"""
     service_worker_content = """
 // Coffee Shop Manager Service Worker
 const CACHE_NAME = 'coffee-shop-v3';
@@ -339,7 +336,8 @@ function doBackgroundSync() {
 }
 """
 
-    return JsonResponse(service_worker_content, content_type="application/javascript")
+    from django.http import HttpResponse
+    return HttpResponse(service_worker_content, content_type="application/javascript")
 
 
 def logout_view(request):
