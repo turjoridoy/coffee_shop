@@ -47,16 +47,28 @@ python manage.py collectstatic --noinput
 - Configure domain to point to your Django app
 - Set up SSL certificate
 
-### 10. Create .htaccess for Apache
-Create `.htaccess` file in your domain root:
-```apache
-RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule ^(.*)$ /coffee_shop/manage.py/$1 [QSA,L]
+### 10. Configure Hostinger Settings
+- Set Python version to 3.8+ in Hostinger control panel
+- Configure domain to point to your Django app
+- Set up SSL certificate
 
-# Static files
-RewriteRule ^static/(.*)$ /coffee_shop/staticfiles/$1 [L]
+### 11. File Structure
+Your files should be organized like this:
 ```
+public_html/
+├── coffee_shop/          # Your Django project
+│   ├── manage.py
+│   ├── passenger_wsgi.py
+│   ├── .htaccess
+│   └── ... (all Django files)
+├── index.html            # Redirect to Django app
+└── .htaccess            # Main domain .htaccess
+```
+
+### 12. Test Your Setup
+1. Visit: `https://ludwigpfeiffer.com.bd/coffee_shop/`
+2. Should redirect to your Django application
+3. Check if static files load properly
 
 ## 🔧 Configuration Files
 
