@@ -1,5 +1,9 @@
 RewriteEngine On
 
+# Enable Python CGI
+AddHandler cgi-script .py
+Options +ExecCGI
+
 # Handle static files
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_URI} ^/static/
@@ -11,7 +15,7 @@ RewriteRule ^manifest\.json$ /manifest.json [L]
 RewriteRule ^service-worker\.js$ /service-worker.js [L]
 RewriteRule ^browserconfig\.xml$ /browserconfig.xml [L]
 
-# Serve static HTML app (fallback since Python isn't working)
+# Handle Django URLs - redirect to passenger_wsgi.py
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ static_app.html [L]
+RewriteRule ^(.*)$ passenger_wsgi.py/$1 [QSA,L]
