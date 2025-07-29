@@ -4,6 +4,7 @@ from .views import (
     SaleViewSet,
     PaymentMethodViewSet,
     CategoryViewSet,
+    ProductViewSet,
     dashboard_data,
     test_api,
     today_sales_count,
@@ -13,6 +14,7 @@ router = DefaultRouter()
 router.register(r"sales", SaleViewSet)
 router.register(r"payment-methods", PaymentMethodViewSet)
 router.register(r"categories", CategoryViewSet)
+router.register(r"products", ProductViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),

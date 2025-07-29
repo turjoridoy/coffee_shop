@@ -53,8 +53,10 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', function () {
     loadDashboardData();
     loadTodaySalesCount();
-    loadCategories();
+    loadStockData();
     loadPaymentMethods();
+    loadProducts();
+    loadQuickActions();
     updateConnectionStatus();
 
     // Event listeners
@@ -64,7 +66,50 @@ document.addEventListener('DOMContentLoaded', function () {
     // Form event listeners
     document.getElementById('saleQuantity').addEventListener('input', calculateSaleTotal);
     document.getElementById('salePrice').addEventListener('input', calculateSaleTotal);
+
+    // Product selection event listener
+    document.getElementById('saleProduct').addEventListener('change', onProductSelect);
 });
+
+// Load quick actions from API
+async function loadQuickActions() {
+    try {
+        const response = await apiRequest('/products/quick_actions/');
+        const quickActions = Array.isArray(response) ? response : response.results || [];
+
+        const quickActionsContainer = document.getElementById('quickActionsContainer');
+        if (!quickActionsContainer) return;
+
+        if (quickActions.length === 0) {
+            quickActionsContainer.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No quick actions configured</p>';
+        } else {
+            quickActionsContainer.innerHTML = quickActions.map(product => `
+                <button class="btn btn-primary btn-full" onclick="showQuickSale('${product.name}', ${product.price})">
+                    ${getProductIcon(product.name)} ${product.name}
+                </button>
+            `).join('');
+        }
+
+        console.log('Quick actions loaded:', quickActions.length);
+    } catch (error) {
+        console.error('Failed to load quick actions:', error);
+        showAlert('Failed to load quick actions', 'warning');
+    }
+}
+
+function getProductIcon(productName) {
+    const name = productName.toLowerCase();
+    if (name.includes('coffee')) return '☕';
+    if (name.includes('tea') || name.includes('chai')) return '🍵';
+    if (name.includes('samosa')) return '🥟';
+    if (name.includes('burger')) return '🍔';
+    if (name.includes('fries')) return '🍟';
+    if (name.includes('cake')) return '🍰';
+    if (name.includes('ice cream')) return '🍦';
+    if (name.includes('cola') || name.includes('sprite') || name.includes('pepsi')) return '🥤';
+    if (name.includes('water')) return '💧';
+    return '📦';
+}
 
 // API Request function
 async function apiRequest(endpoint, options = {}) {
@@ -98,34 +143,7 @@ function getCSRFToken() {
     return token ? token.value : '';
 }
 
-// Load categories from API
-async function loadCategories() {
-    try {
-        const response = await apiRequest('/categories/');
-        console.log('Categories API response:', response);
 
-        // Handle different response formats
-        const categories = Array.isArray(response) ? response : (response.results || []);
-
-        const categorySelect = document.getElementById('saleCategory');
-
-        // Clear existing options
-        categorySelect.innerHTML = '<option value="">Select Category</option>';
-
-        // Add categories from API
-        categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category.id;
-            option.textContent = category.name;
-            categorySelect.appendChild(option);
-        });
-
-        console.log('Categories loaded:', categories.length);
-    } catch (error) {
-        console.error('Failed to load categories:', error);
-        showAlert('Failed to load categories', 'warning');
-    }
-}
 
 // Load payment methods from API
 async function loadPaymentMethods() {
@@ -159,6 +177,118 @@ async function loadPaymentMethods() {
         console.error('Failed to load payment methods:', error);
         showAlert('Failed to load payment methods', 'warning');
     }
+}
+
+// Load products from API
+async function loadProducts() {
+    try {
+        const response = await apiRequest('/products/');
+        console.log('Products API response:', response);
+
+        // Handle different response formats
+        const products = Array.isArray(response) ? response : (response.results || []);
+
+        const productSelect = document.getElementById('saleProduct');
+
+        // Clear existing options
+        productSelect.innerHTML = '<option value="">Select Product</option>';
+
+        // Add products from API
+        products.forEach(product => {
+            const option = document.createElement('option');
+            option.value = product.id;
+
+            // Add stock status to product name for stockable products
+            if (product.product_type === 'stockable') {
+                if (product.stock_quantity <= 0) {
+                    option.textContent = `${product.name} - ৳${product.price} (OUT OF STOCK)`;
+                    option.disabled = true; // Disable out of stock products
+                } else if (product.stock_quantity <= product.min_stock_level) {
+                    option.textContent = `${product.name} - ৳${product.price} (LOW STOCK: ${product.stock_quantity})`;
+                } else {
+                    option.textContent = `${product.name} - ৳${product.price}`;
+                }
+            } else {
+                option.textContent = `${product.name} - ৳${product.price}`;
+            }
+
+            option.dataset.price = product.price;
+            option.dataset.productType = product.product_type;
+            option.dataset.stockQuantity = product.stock_quantity;
+            option.dataset.categoryName = product.category_name;
+            productSelect.appendChild(option);
+        });
+
+        console.log('Products loaded:', products.length);
+    } catch (error) {
+        console.error('Failed to load products:', error);
+        showAlert('Failed to load products', 'warning');
+    }
+}
+
+function onProductSelect() {
+    const productSelect = document.getElementById('saleProduct');
+    const selectedOption = productSelect.options[productSelect.selectedIndex];
+
+    if (selectedOption && selectedOption.value && !selectedOption.disabled) {
+        const price = parseFloat(selectedOption.dataset.price);
+        const productType = selectedOption.dataset.productType;
+        const stockQuantity = parseInt(selectedOption.dataset.stockQuantity);
+        const categoryName = selectedOption.dataset.categoryName;
+
+        // Set the price
+        document.getElementById('salePrice').value = price;
+
+        // Show category and stock info
+        const productInfo = document.getElementById('productInfo') || createProductInfo();
+        productInfo.innerHTML = `
+            <div style="margin-top: 5px; font-size: 0.9rem; color: #666;">
+                <p>Category: ${categoryName}</p>
+                ${productType === 'stockable' ? `<p>Available Stock: ${stockQuantity}</p>` : '<p>Instant Product</p>'}
+            </div>
+        `;
+        productInfo.style.display = 'block';
+
+        // Show stock warning for stockable products
+        if (productType === 'stockable') {
+            if (stockQuantity <= 0) {
+                productSelect.style.borderColor = '#ff4444';
+                showToast('This product is out of stock! Please restock before selling.', 'error');
+                // Clear the selection for out-of-stock products
+                productSelect.value = '';
+                return;
+            } else if (stockQuantity <= 5) {
+                productSelect.style.borderColor = '#ffaa00';
+                showToast('Low stock warning!', 'warning');
+            } else {
+                productSelect.style.borderColor = '';
+            }
+        } else {
+            productSelect.style.borderColor = '';
+        }
+
+        calculateSaleTotal();
+    } else {
+        const productInfo = document.getElementById('productInfo');
+        if (productInfo) {
+            productInfo.style.display = 'none';
+        }
+        productSelect.style.borderColor = '';
+
+        // If disabled option was selected, clear it
+        if (selectedOption && selectedOption.disabled) {
+            productSelect.value = '';
+            showToast('This product is out of stock! Please select another product.', 'error');
+        }
+    }
+}
+
+function createProductInfo() {
+    const productInfo = document.createElement('div');
+    productInfo.id = 'productInfo';
+    productInfo.style.cssText = 'margin-top: 5px; font-size: 0.9rem; color: #666;';
+    document.getElementById('saleProduct').parentNode.appendChild(productInfo);
+    return productInfo;
 }
 
 // Update connection status
@@ -208,6 +338,7 @@ function showTab(tabName) {
     // Load data based on tab
     if (tabName === 'dashboard') {
         loadDashboardData();
+        loadStockData();
     } else if (tabName === 'today') {
         loadTodaysSales();
     } else if (tabName === 'reports') {
@@ -224,9 +355,6 @@ async function loadDashboardData() {
         document.getElementById('todaySales').textContent = data.today_total.toLocaleString();
         document.getElementById('todayTransactions').textContent = data.today_count;
         document.getElementById('monthlyRevenue').textContent = data.monthly_total.toLocaleString();
-
-        // Display recent sales
-        displayRecentSales(data.recent_sales);
 
     } catch (error) {
         console.error('Failed to load dashboard data:', error);
@@ -251,23 +379,55 @@ function displayTodaySalesCount(data) {
     document.getElementById('todayTransactions').textContent = data.today_count;
 }
 
-// Display recent sales
-function displayRecentSales(sales) {
-    const container = document.getElementById('recentSalesContainer');
-    const loading = document.getElementById('recentSalesLoading');
-    const tbody = document.getElementById('recentSalesBody');
+// Load stock data
+async function loadStockData() {
+    try {
+        const response = await apiRequest('/products/');
+        const products = Array.isArray(response) ? response : response.results || [];
 
-    if (sales.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #666;">No sales recorded yet</td></tr>';
+        // Filter only stockable products
+        const stockableProducts = products.filter(product => product.product_type === 'stockable');
+
+        displayStockData(stockableProducts);
+    } catch (error) {
+        console.error('Failed to load stock data:', error);
+        showAlert('Failed to load stock data', 'error');
+    }
+}
+
+// Display stock data
+function displayStockData(products) {
+    const container = document.getElementById('stockContainer');
+    const loading = document.getElementById('stockLoading');
+    const tbody = document.getElementById('stockBody');
+
+    if (products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #666;">No stockable products found</td></tr>';
     } else {
-        tbody.innerHTML = sales.map(sale => `
-            <tr>
-                <td>${new Date(sale.created_at).toLocaleTimeString()}</td>
-                <td>${sale.item_name}</td>
-                <td>${sale.quantity}</td>
-                <td>৳${sale.total_amount}</td>
-            </tr>
-        `).join('');
+        tbody.innerHTML = products.map(product => {
+            let statusClass = '';
+            let statusText = '';
+
+            if (product.stock_quantity <= 0) {
+                statusClass = 'stock-out';
+                statusText = 'Out of Stock';
+            } else if (product.stock_quantity <= product.min_stock_level) {
+                statusClass = 'stock-low';
+                statusText = 'Low Stock';
+            } else {
+                statusClass = 'stock-ok';
+                statusText = 'In Stock';
+            }
+
+            return `
+                <tr class="${statusClass}">
+                    <td>${product.name}</td>
+                    <td>${product.category_name}</td>
+                    <td>${product.stock_quantity}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                </tr>
+            `;
+        }).join('');
     }
 
     loading.style.display = 'none';
@@ -285,8 +445,7 @@ async function addSale(event) {
     event.preventDefault();
 
     // Get form values before resetting
-    const itemName = document.getElementById('saleItem').value;
-    const categoryId = document.getElementById('saleCategory').value;
+    const productId = document.getElementById('saleProduct').value;
     const quantity = document.getElementById('saleQuantity').value;
     const unitPrice = document.getElementById('salePrice').value;
     const paymentMethodId = document.getElementById('salePayment').value;
@@ -295,20 +454,38 @@ async function addSale(event) {
     const notes = document.getElementById('saleNotes')?.value || '';
 
     // Validate required fields
-    if (!itemName || !categoryId || !quantity || !unitPrice || !paymentMethodId) {
+    if (!productId || !quantity || !unitPrice || !paymentMethodId) {
         showAlert('Please fill in all required fields', 'error');
         return;
     }
 
     // Additional validation for dropdowns
-    if (categoryId === '' || paymentMethodId === '') {
-        showAlert('Please select a category and payment method', 'error');
+    if (productId === '' || paymentMethodId === '') {
+        showAlert('Please select a product and payment method', 'error');
         return;
     }
 
+    // Check stock availability for stockable products
+    const productSelect = document.getElementById('saleProduct');
+    const selectedOption = productSelect.options[productSelect.selectedIndex];
+    const productType = selectedOption.dataset.productType;
+    const stockQuantity = parseInt(selectedOption.dataset.stockQuantity);
+    const requestedQuantity = parseInt(quantity);
+
+    if (productType === 'stockable') {
+        if (stockQuantity <= 0) {
+            showToast('This product is out of stock! Please restock before selling.', 'error');
+            return;
+        }
+
+        if (requestedQuantity > stockQuantity) {
+            showToast(`Insufficient stock! Available: ${stockQuantity}, Requested: ${requestedQuantity}`, 'error');
+            return;
+        }
+    }
+
     const sale = {
-        item_name: itemName,
-        category: parseInt(categoryId),
+        product: parseInt(productId),
         quantity: parseInt(quantity),
         unit_price: parseFloat(unitPrice),
         payment_method: parseInt(paymentMethodId),
@@ -318,7 +495,7 @@ async function addSale(event) {
     };
 
     console.log('Sending sale data:', sale);
-    console.log('Category ID type:', typeof sale.category, 'Value:', sale.category);
+    console.log('Product ID type:', typeof sale.product, 'Value:', sale.product);
     console.log('Payment Method ID type:', typeof sale.payment_method, 'Value:', sale.payment_method);
 
     try {
@@ -332,50 +509,51 @@ async function addSale(event) {
         // Reset form
         document.getElementById('saleForm').reset();
 
-        // Reload categories and payment methods to restore defaults
-        loadCategories();
+        // Reload products and payment methods to restore defaults
+        loadProducts();
         loadPaymentMethods();
 
         // Reload dashboard data
         loadDashboardData();
         loadTodaySalesCount();
+        loadStockData();
 
     } catch (error) {
         console.error('Failed to add sale:', error);
-        showToast('Failed to add sale. Please try again.', 'error');
+
+        // Handle specific error messages from backend
+        if (error.response && error.response.data && error.response.data.error) {
+            showToast(error.response.data.error, 'error');
+        } else {
+            showToast('Failed to add sale. Please try again.', 'error');
+        }
     }
 }
 
 function showQuickSale(item, price) {
-    document.getElementById('saleItem').value = item;
-    document.getElementById('salePrice').value = price;
-    document.getElementById('saleQuantity').value = 1;
-    calculateSaleTotal();
-
-    // Auto-select category based on item
-    const categorySelect = document.getElementById('saleCategory');
+    // Find and select the appropriate product
+    const productSelect = document.getElementById('saleProduct');
     const itemLower = item.toLowerCase();
 
-    // Find and select the appropriate category
-    for (let option of categorySelect.options) {
-        const categoryName = option.textContent.toLowerCase();
-        if (itemLower.includes('coffee') && categoryName.includes('coffee')) {
+    // Find and select the appropriate product by exact name match
+    for (let option of productSelect.options) {
+        const productName = option.textContent.split(' - ')[0].toLowerCase(); // Get just the product name part
+        if (productName === itemLower) {
             option.selected = true;
-            break;
-        } else if (itemLower.includes('tea') && categoryName.includes('tea')) {
-            option.selected = true;
-            break;
-        } else if (itemLower.includes('samosa') && categoryName.includes('snack')) {
-            option.selected = true;
+            onProductSelect(); // Trigger product selection to set price and other fields
             break;
         }
     }
 
+    // Set quantity to 1
+    document.getElementById('saleQuantity').value = 1;
+    calculateSaleTotal();
+
     // Switch to sales tab
     showTab('sales');
 
-    // Focus on item name field
-    document.getElementById('saleItem').focus();
+    // Focus on quantity field for easy editing
+    document.getElementById('saleQuantity').focus();
 }
 
 // Load today's sales
@@ -400,7 +578,7 @@ function displayTodaysSales(sales) {
         tbody.innerHTML = sales.map(sale => `
             <tr>
                 <td>${new Date(sale.created_at).toLocaleTimeString()}</td>
-                <td>${sale.item_name}</td>
+                <td>${sale.product_name}</td>
                 <td>${sale.quantity}</td>
                 <td>৳${sale.total_amount}</td>
             </tr>

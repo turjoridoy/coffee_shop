@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Sale, PaymentMethod, Category, User
+from .models import Sale, PaymentMethod, Category, User, Product
 
 
 @admin.register(User)
@@ -61,11 +61,104 @@ class CategoryAdmin(admin.ModelAdmin):
     ordering = ["name"]
 
 
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = [
+        "name",
+        "category",
+        "product_type",
+        "price",
+        "stock_quantity",
+        "is_quick_action",
+        "is_low_stock",
+        "is_active",
+    ]
+    list_filter = [
+        "category",
+        "product_type",
+        "is_quick_action",
+        "is_active",
+        "created_at",
+    ]
+    search_fields = ["name", "category__name"]
+    readonly_fields = ["is_low_stock", "is_out_of_stock", "created_at", "updated_at"]
+    ordering = ["category__name", "name"]
+    list_editable = ["is_quick_action", "is_active"]
+    actions = [
+        "mark_as_quick_action",
+        "remove_from_quick_action",
+    ]
+
+    fieldsets = (
+        (
+            "Product Information",
+            {
+                "fields": (
+                    "name",
+                    "category",
+                    "product_type",
+                    "price",
+                )
+            },
+        ),
+        (
+            "Inventory Management",
+            {
+                "fields": (
+                    "stock_quantity",
+                    "min_stock_level",
+                    "is_low_stock",
+                    "is_out_of_stock",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Quick Actions",
+            {
+                "fields": ("is_quick_action",),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Status",
+            {
+                "fields": ("is_active",),
+            },
+        ),
+        (
+            "System Information",
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("category")
+
+    @admin.action(description="Mark selected products as Quick Actions")
+    def mark_as_quick_action(self, request, queryset):
+        updated = queryset.update(is_quick_action=True)
+        self.message_user(request, f"{updated} products marked as Quick Actions.")
+
+    @admin.action(description="Remove selected products from Quick Actions")
+    def remove_from_quick_action(self, request, queryset):
+        updated = queryset.update(is_quick_action=False)
+        self.message_user(request, f"{updated} products removed from Quick Actions.")
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if "delete_selected" in actions:
+            del actions["delete_selected"]
+        return actions
+
+
 @admin.register(Sale)
 class SaleAdmin(admin.ModelAdmin):
     list_display = [
-        "item_name",
-        "category",
+        "product",
         "quantity",
         "unit_price",
         "total_amount",
@@ -73,18 +166,17 @@ class SaleAdmin(admin.ModelAdmin):
         "customer_name",
         "created_at",
     ]
-    list_filter = ["category", "payment_method", "created_at"]
-    search_fields = ["item_name", "customer_name", "customer_phone"]
+    list_filter = ["product__category", "payment_method", "created_at"]
+    search_fields = ["product__name", "customer_name", "customer_phone"]
     readonly_fields = ["total_amount", "created_at"]
     ordering = ["-created_at"]
 
     fieldsets = (
         (
-            "Item Information",
+            "Product Information",
             {
                 "fields": (
-                    "item_name",
-                    "category",
+                    "product",
                     "quantity",
                     "unit_price",
                     "total_amount",
@@ -101,6 +193,9 @@ class SaleAdmin(admin.ModelAdmin):
         ),
         ("System Information", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("product", "payment_method")
 
 
 # Customize admin site

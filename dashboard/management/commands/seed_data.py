@@ -1,130 +1,263 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from dashboard.models import Sale, PaymentMethod, Category
-from decimal import Decimal
-import random
 from datetime import timedelta
+from dashboard.models import Category, PaymentMethod, Product, Sale
+import random
 
 
 class Command(BaseCommand):
-    help = "Seed initial data for the coffee shop"
+    help = "Seed the database with initial data"
 
     def handle(self, *args, **options):
-        self.stdout.write("Seeding initial data...")
-
-        # Create payment methods
-        payment_methods = [
-            "Cash",
-            "Mobile Banking",
-            "Card",
-            "Digital Wallet",
-        ]
-
-        for method_name in payment_methods:
-            PaymentMethod.objects.get_or_create(
-                name=method_name, defaults={"is_active": True}
-            )
-
-        self.stdout.write(f"Created {len(payment_methods)} payment methods")
+        self.stdout.write("Seeding database with initial data...")
 
         # Create categories
-        categories = [
+        categories_data = [
             "Coffee",
             "Tea",
             "Snacks",
-            "Cold Drinks",
-            "Breakfast",
-            "Lunch",
-            "Desserts",
             "Beverages",
+            "Desserts",
         ]
 
-        for category_name in categories:
-            Category.objects.get_or_create(
-                name=category_name, defaults={"is_active": True}
+        categories = {}
+        for cat_name in categories_data:
+            category, created = Category.objects.get_or_create(
+                name=cat_name, defaults={"is_active": True}
             )
+            categories[cat_name] = category
+            if created:
+                self.stdout.write(f"Created category: {cat_name}")
 
-        self.stdout.write(f"Created {len(categories)} categories")
+        # Create payment methods
+        payment_methods_data = [
+            "Cash",
+            "Card",
+            "Mobile Banking",
+            "Bkash",
+            "Nagad",
+        ]
+
+        payment_methods = {}
+        for pm_name in payment_methods_data:
+            pm, created = PaymentMethod.objects.get_or_create(
+                name=pm_name, defaults={"is_active": True}
+            )
+            payment_methods[pm_name] = pm
+            if created:
+                self.stdout.write(f"Created payment method: {pm_name}")
+
+        # Create products
+        products_data = [
+            # Coffee products (non-stockable)
+            {
+                "name": "Black Coffee",
+                "category": "Coffee",
+                "price": 30.00,
+                "product_type": "non_stockable",
+                "is_quick_action": True,
+            },
+            {
+                "name": "Cappuccino",
+                "category": "Coffee",
+                "price": 45.00,
+                "product_type": "non_stockable",
+            },
+            {
+                "name": "Latte",
+                "category": "Coffee",
+                "price": 50.00,
+                "product_type": "non_stockable",
+            },
+            {
+                "name": "Espresso",
+                "category": "Coffee",
+                "price": 35.00,
+                "product_type": "non_stockable",
+            },
+            {
+                "name": "Americano",
+                "category": "Coffee",
+                "price": 40.00,
+                "product_type": "non_stockable",
+            },
+            # Tea products (non-stockable)
+            {
+                "name": "Black Tea",
+                "category": "Tea",
+                "price": 20.00,
+                "product_type": "non_stockable",
+            },
+            {
+                "name": "Green Tea",
+                "category": "Tea",
+                "price": 25.00,
+                "product_type": "non_stockable",
+            },
+            {
+                "name": "Masala Chai",
+                "category": "Tea",
+                "price": 30.00,
+                "product_type": "non_stockable",
+                "is_quick_action": True,
+            },
+            {
+                "name": "Lemon Tea",
+                "category": "Tea",
+                "price": 25.00,
+                "product_type": "non_stockable",
+            },
+            # Snacks (stockable)
+            {
+                "name": "Samosa",
+                "category": "Snacks",
+                "price": 15.00,
+                "product_type": "stockable",
+                "stock_quantity": 50,
+                "min_stock_level": 10,
+                "is_quick_action": True,
+            },
+            {
+                "name": "Chicken Roll",
+                "category": "Snacks",
+                "price": 40.00,
+                "product_type": "stockable",
+                "stock_quantity": 30,
+                "min_stock_level": 5,
+            },
+            {
+                "name": "Veg Roll",
+                "category": "Snacks",
+                "price": 25.00,
+                "product_type": "stockable",
+                "stock_quantity": 40,
+                "min_stock_level": 8,
+            },
+            {
+                "name": "French Fries",
+                "category": "Snacks",
+                "price": 60.00,
+                "product_type": "stockable",
+                "stock_quantity": 25,
+                "min_stock_level": 5,
+            },
+            {
+                "name": "Chicken Burger",
+                "category": "Snacks",
+                "price": 80.00,
+                "product_type": "stockable",
+                "stock_quantity": 20,
+                "min_stock_level": 3,
+            },
+            # Beverages (stockable)
+            {
+                "name": "Coca Cola",
+                "category": "Beverages",
+                "price": 25.00,
+                "product_type": "stockable",
+                "stock_quantity": 100,
+                "min_stock_level": 20,
+            },
+            {
+                "name": "Sprite",
+                "category": "Beverages",
+                "price": 25.00,
+                "product_type": "stockable",
+                "stock_quantity": 80,
+                "min_stock_level": 15,
+            },
+            {
+                "name": "Pepsi",
+                "category": "Beverages",
+                "price": 25.00,
+                "product_type": "stockable",
+                "stock_quantity": 90,
+                "min_stock_level": 18,
+            },
+            {
+                "name": "Water Bottle",
+                "category": "Beverages",
+                "price": 15.00,
+                "product_type": "stockable",
+                "stock_quantity": 150,
+                "min_stock_level": 30,
+            },
+            # Desserts (stockable)
+            {
+                "name": "Chocolate Cake",
+                "category": "Desserts",
+                "price": 120.00,
+                "product_type": "stockable",
+                "stock_quantity": 15,
+                "min_stock_level": 3,
+            },
+            {
+                "name": "Ice Cream",
+                "category": "Desserts",
+                "price": 80.00,
+                "product_type": "stockable",
+                "stock_quantity": 25,
+                "min_stock_level": 5,
+            },
+            {
+                "name": "Pudding",
+                "category": "Desserts",
+                "price": 60.00,
+                "product_type": "stockable",
+                "stock_quantity": 20,
+                "min_stock_level": 4,
+            },
+        ]
+
+        products = {}
+        for product_data in products_data:
+            product, created = Product.objects.get_or_create(
+                name=product_data["name"],
+                defaults={
+                    "category": categories[product_data["category"]],
+                    "price": product_data["price"],
+                    "product_type": product_data["product_type"],
+                    "stock_quantity": product_data.get("stock_quantity", 0),
+                    "min_stock_level": product_data.get("min_stock_level", 0),
+                    "is_quick_action": product_data.get("is_quick_action", False),
+                    "is_active": True,
+                },
+            )
+            products[product_data["name"]] = product
+            if created:
+                self.stdout.write(f"Created product: {product_data['name']}")
 
         # Create sample sales
         if Sale.objects.count() == 0:
-            items = [
-                "Espresso",
-                "Cappuccino",
-                "Latte",
-                "Americano",
-                "Mocha",
-                "Green Tea",
-                "Black Tea",
-                "Chai Latte",
-                "Hot Chocolate",
-                "Sandwich",
-                "Burger",
-                "Pizza",
-                "Pasta",
-                "Salad",
-                "Coca Cola",
-                "Sprite",
-                "Orange Juice",
-                "Lemonade",
-                "Pancakes",
-                "Omelette",
-                "Toast",
-                "Cereal",
-                "Chicken Rice",
-                "Beef Steak",
-                "Fish Curry",
-                "Vegetable Curry",
-                "Chocolate Cake",
-                "Ice Cream",
-                "Cheesecake",
-                "Brownie",
-                "Smoothie",
-                "Milkshake",
-                "Frappuccino",
-                "Iced Coffee",
-            ]
+            # Get some products for sample sales
+            sample_products = list(products.values())
+            sample_payment_methods = list(payment_methods.values())
 
-            payment_methods = list(PaymentMethod.objects.filter(is_active=True))
-            categories = list(Category.objects.filter(is_active=True))
+            # Create sales for different dates
+            for i in range(50):
+                # Random date within last 30 days
+                days_ago = random.randint(0, 30)
+                sale_date = timezone.now() - timedelta(days=days_ago)
 
-            for i in range(20):
-                item_name = random.choice(items)
-                category = random.choice(categories)
-                payment_method = random.choice(payment_methods)
+                product = random.choice(sample_products)
+                payment_method = random.choice(sample_payment_methods)
                 quantity = random.randint(1, 5)
-                unit_price = Decimal(str(random.randint(50, 500)))
+                unit_price = float(product.price)
+                total_amount = quantity * unit_price
 
-                # Create sales with different dates
-                if i < 5:  # 5 sales today
-                    created_at = timezone.now()
-                elif i < 10:  # 5 sales yesterday
-                    created_at = timezone.now() - timedelta(days=1)
-                elif i < 15:  # 5 sales 2 days ago
-                    created_at = timezone.now() - timedelta(days=2)
-                else:  # 5 sales 3 days ago
-                    created_at = timezone.now() - timedelta(days=3)
-
-                Sale.objects.create(
-                    item_name=item_name,
-                    category=category,
+                sale = Sale.objects.create(
+                    product=product,
                     quantity=quantity,
                     unit_price=unit_price,
+                    total_amount=total_amount,
                     payment_method=payment_method,
-                    customer_name=(
-                        f"Customer {i+1}" if random.choice([True, False]) else ""
-                    ),
-                    customer_phone=(
-                        f"01{random.randint(100000000, 999999999)}"
-                        if random.choice([True, False])
-                        else ""
-                    ),
-                    notes=f"Sample sale {i+1}" if random.choice([True, False]) else "",
-                    created_at=created_at,
+                    customer_name=f"Customer {i+1}",
+                    customer_phone=f"+8801{random.randint(100000000, 999999999)}",
+                    notes=f"Sample sale {i+1}",
+                    created_at=sale_date,
                 )
+                self.stdout.write(f"Created sale: {sale}")
 
-            self.stdout.write("Created 20 sample sales")
-        else:
-            self.stdout.write("Sales already exist, skipping...")
-
-        self.stdout.write(self.style.SUCCESS("Data seeding completed successfully!"))
+        self.stdout.write(
+            self.style.SUCCESS("Successfully seeded database with initial data!")
+        )

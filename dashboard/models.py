@@ -74,11 +74,63 @@ class Category(models.Model):
         return self.name
 
 
-class Sale(models.Model):
-    item_name = models.CharField(max_length=100)
+class Product(models.Model):
+    PRODUCT_TYPES = [
+        ("stockable", "Stockable (Inventory)"),
+        ("non_stockable", "Non-Stockable (Instant)"),
+    ]
+
+    name = models.CharField(max_length=100, unique=True)
     category = models.ForeignKey(
-        Category, on_delete=models.CASCADE, related_name="sales"
+        Category, on_delete=models.CASCADE, related_name="products"
     )
+    product_type = models.CharField(
+        max_length=20, choices=PRODUCT_TYPES, default="non_stockable"
+    )
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    stock_quantity = models.PositiveIntegerField(
+        default=0, help_text="Current stock quantity (for stockable products)"
+    )
+    min_stock_level = models.PositiveIntegerField(
+        default=0, help_text="Minimum stock level for alerts"
+    )
+    is_quick_action = models.BooleanField(
+        default=False, help_text="Show this product in Quick Actions section"
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["category__name", "name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.category.name})"
+
+    @property
+    def is_low_stock(self):
+        """Check if stock is below minimum level"""
+        return (
+            self.product_type == "stockable"
+            and self.stock_quantity <= self.min_stock_level
+        )
+
+    @property
+    def is_out_of_stock(self):
+        """Check if product is out of stock"""
+        return self.product_type == "stockable" and self.stock_quantity <= 0
+
+    def update_stock(self, quantity_change):
+        """Update stock quantity (positive for addition, negative for reduction)"""
+        if self.product_type == "stockable":
+            self.stock_quantity += quantity_change
+            if self.stock_quantity < 0:
+                self.stock_quantity = 0
+            self.save()
+
+
+class Sale(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="sales")
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -94,10 +146,15 @@ class Sale(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.item_name} - {self.total_amount}"
+        return f"{self.product.name} - {self.total_amount}"
 
     def save(self, *args, **kwargs):
         # Auto-calculate total amount if not provided
         if not self.total_amount:
             self.total_amount = self.quantity * self.unit_price
+
+        # Update stock if this is a new sale and product is stockable
+        if not self.pk and self.product.product_type == "stockable":
+            self.product.update_stock(-self.quantity)
+
         super().save(*args, **kwargs)

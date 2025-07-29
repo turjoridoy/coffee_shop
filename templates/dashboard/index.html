@@ -77,21 +77,21 @@
                     </div>
                 </div>
 
-                <!-- Recent sales -->
+                <!-- Stock Availability -->
                 <div class="card">
-                    <h3>Recent Sales</h3>
-                    <div class="loading" id="recentSalesLoading">Loading recent sales...</div>
-                    <div class="table-container" id="recentSalesContainer" style="display: none;">
+                    <h3>Stock Availability</h3>
+                    <div class="loading" id="stockLoading">Loading stock data...</div>
+                    <div class="table-container" id="stockContainer" style="display: none;">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Time</th>
-                                    <th>Item</th>
-                                    <th>Qty</th>
-                                    <th>Total</th>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th>Stock</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
-                            <tbody id="recentSalesBody"></tbody>
+                            <tbody id="stockBody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -104,9 +104,9 @@
                     <form id="saleForm" onsubmit="addSale(event)">
                         <div class="form-row keep-two-col">
                             <div class="form-group">
-                                <label class="form-label">Category</label>
-                                <select id="saleCategory" class="form-input" required>
-                                    <option value="">Select Category</option>
+                                <label class="form-label">Product</label>
+                                <select id="saleProduct" class="form-input" required>
+                                    <option value="">Select Product</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -117,10 +117,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label class="form-label">Item Name</label>
-                            <input type="text" id="saleItem" class="form-input" placeholder="Enter item name" required>
-                        </div>
+
 
                         <div class="form-row keep-two-col">
                             <div class="form-group">
@@ -167,11 +164,9 @@
                 <!-- Quick actions -->
                 <div class="card">
                     <h3>Quick Actions</h3>
-                    <button class="btn btn-primary btn-full" onclick="showQuickSale('Coffee', 25)">☕ Coffee -
-                        ৳25</button>
-                    <button class="btn btn-primary btn-full" onclick="showQuickSale('Tea', 30)">🍵 Tea - ৳30</button>
-                    <button class="btn btn-primary btn-full" onclick="showQuickSale('Samosa', 15)">🥟 Samosa -
-                        ৳15</button>
+                    <div id="quickActionsContainer">
+                        <div class="loading">Loading quick actions...</div>
+                    </div>
                 </div>
             </div>
 

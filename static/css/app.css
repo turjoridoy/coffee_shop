@@ -306,9 +306,13 @@ body {
 .form-label {
     display: block;
     margin-bottom: 8px;
-    color: #2c5aa0;
+    color: #ffffff;
     font-weight: 600;
     font-size: 0.9rem;
+}
+
+#productInfo p {
+    color: #d5d5d5;
 }
 
 .form-input {
@@ -843,4 +847,90 @@ table tbody tr td[colspan] {
     th {
         background: #1a202c;
     }
+}
+
+/* Stock Status Styles */
+.stock-out {
+    background-color: #fff5f5;
+    border-left: 4px solid #dc3545;
+}
+
+.stock-out:hover {
+    background-color: #ffe5e5;
+}
+
+.stock-low {
+    background-color: #fffbf0;
+    border-left: 4px solid #ffc107;
+}
+
+.stock-low:hover {
+    background-color: #fff3cd;
+}
+
+.stock-ok {
+    background-color: #f8fff8;
+    border-left: 4px solid #28a745;
+}
+
+.stock-ok:hover {
+    background-color: #d4edda;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.stock-out {
+    background-color: #dc3545;
+    color: white;
+}
+
+.status-badge.stock-low {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.status-badge.stock-ok {
+    background-color: #28a745;
+    color: white;
+}
+
+/* Stock table specific styles */
+#stockContainer table th {
+    background: linear-gradient(45deg, #2c5aa0, #4a90e2);
+    color: white;
+    font-weight: 600;
+}
+
+/* Disabled product options */
+.form-input option:disabled {
+    color: #999;
+    font-style: italic;
+    background-color: #f5f5f5;
+}
+
+.form-input option[disabled] {
+    color: #999;
+    font-style: italic;
+    background-color: #f5f5f5;
+}
+
+#stockContainer table td {
+    padding: 12px 8px;
+    vertical-align: middle;
+}
+
+#stockContainer table tr {
+    transition: all 0.3s ease;
+}
+
+#stockContainer table tr:hover {
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }

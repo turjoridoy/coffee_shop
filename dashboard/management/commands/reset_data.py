@@ -1,20 +1,38 @@
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
-from dashboard.models import Sale
+from dashboard.models import Sale, Product, Category, PaymentMethod
 
 
 class Command(BaseCommand):
-    help = "Clear existing data and recreate with proper timezone"
+    help = "Reset all data and re-seed the database"
 
     def handle(self, *args, **options):
-        self.stdout.write("Clearing existing sales data...")
+        self.stdout.write("Resetting all data...")
 
-        # Clear all existing sales
+        # Delete all sales first
+        sales_count = Sale.objects.count()
         Sale.objects.all().delete()
-        self.stdout.write("Cleared all existing sales")
+        self.stdout.write(f"Deleted {sales_count} sales")
 
-        # Recreate data with proper timezone
-        self.stdout.write("Recreating data with proper timezone...")
+        # Delete all products
+        products_count = Product.objects.count()
+        Product.objects.all().delete()
+        self.stdout.write(f"Deleted {products_count} products")
+
+        # Delete all categories
+        categories_count = Category.objects.count()
+        Category.objects.all().delete()
+        self.stdout.write(f"Deleted {categories_count} categories")
+
+        # Delete all payment methods
+        payment_methods_count = PaymentMethod.objects.count()
+        PaymentMethod.objects.all().delete()
+        self.stdout.write(f"Deleted {payment_methods_count} payment methods")
+
+        # Re-seed the data
+        self.stdout.write("Re-seeding data...")
         call_command("seed_data")
 
-        self.stdout.write(self.style.SUCCESS("Data reset completed successfully!"))
+        self.stdout.write(
+            self.style.SUCCESS("Successfully reset and re-seeded the database!")
+        )

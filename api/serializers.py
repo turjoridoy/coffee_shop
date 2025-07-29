@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from dashboard.models import Sale, PaymentMethod, Category
+from dashboard.models import Sale, PaymentMethod, Category, Product
 
 
 class PaymentMethodSerializer(serializers.ModelSerializer):
@@ -14,8 +14,35 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ["id", "name", "is_active"]
 
 
-class SaleSerializer(serializers.ModelSerializer):
+class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
+    is_low_stock = serializers.BooleanField(read_only=True)
+    is_out_of_stock = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Product
+        fields = [
+            "id",
+            "name",
+            "category",
+            "category_name",
+            "product_type",
+            "price",
+            "stock_quantity",
+            "min_stock_level",
+            "is_low_stock",
+            "is_out_of_stock",
+            "is_quick_action",
+            "is_active",
+        ]
+        read_only_fields = ["is_low_stock", "is_out_of_stock"]
+
+
+class SaleSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    category_name = serializers.CharField(
+        source="product.category.name", read_only=True
+    )
     payment_method_name = serializers.CharField(
         source="payment_method.name", read_only=True
     )
@@ -24,8 +51,8 @@ class SaleSerializer(serializers.ModelSerializer):
         model = Sale
         fields = [
             "id",
-            "item_name",
-            "category",
+            "product",
+            "product_name",
             "category_name",
             "quantity",
             "unit_price",

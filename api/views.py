@@ -3,11 +3,16 @@ from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, F
 from django.utils import timezone
 from datetime import datetime, timedelta
-from .serializers import SaleSerializer, PaymentMethodSerializer, CategorySerializer
-from dashboard.models import Sale, PaymentMethod, Category
+from .serializers import (
+    SaleSerializer,
+    PaymentMethodSerializer,
+    CategorySerializer,
+    ProductSerializer,
+)
+from dashboard.models import Sale, PaymentMethod, Category, Product
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,6 +25,7 @@ def test_api(request):
     try:
         categories_count = Category.objects.count()
         payment_methods_count = PaymentMethod.objects.count()
+        products_count = Product.objects.count()
         sales_count = Sale.objects.count()
 
         return Response(
@@ -27,6 +33,7 @@ def test_api(request):
                 "status": "API is working",
                 "categories_count": categories_count,
                 "payment_methods_count": payment_methods_count,
+                "products_count": products_count,
                 "sales_count": sales_count,
             }
         )
@@ -86,6 +93,54 @@ class CategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
 
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.filter(is_active=True)
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None  # Disable pagination for products
+
+    @action(detail=False, methods=["get"])
+    def by_category(self, request):
+        """Get products filtered by category"""
+        category_id = request.query_params.get("category_id")
+        if category_id:
+            products = self.queryset.filter(category_id=category_id)
+        else:
+            products = self.queryset
+        serializer = self.get_serializer(products, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def stockable(self, request):
+        """Get only stockable products"""
+        products = self.queryset.filter(product_type="stockable")
+        serializer = self.get_serializer(products, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def non_stockable(self, request):
+        """Get only non-stockable products"""
+        products = self.queryset.filter(product_type="non_stockable")
+        serializer = self.get_serializer(products, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def low_stock(self, request):
+        """Get products with low stock"""
+        products = self.queryset.filter(
+            product_type="stockable", stock_quantity__lte=models.F("min_stock_level")
+        )
+        serializer = self.get_serializer(products, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def quick_actions(self, request):
+        """Get products marked as quick actions"""
+        products = self.queryset.filter(is_quick_action=True, is_active=True)
+        serializer = self.get_serializer(products, many=True)
+        return Response(serializer.data)
+
+
 class SaleViewSet(viewsets.ModelViewSet):
     queryset = Sale.objects.all()
     serializer_class = SaleSerializer
@@ -96,6 +151,37 @@ class SaleViewSet(viewsets.ModelViewSet):
             logger.info(f"Received sale data: {request.data}")
             serializer = self.get_serializer(data=request.data)
             if serializer.is_valid():
+                # Get the product and check stock availability
+                product_id = request.data.get("product")
+                quantity = int(request.data.get("quantity", 0))
+
+                try:
+                    product = Product.objects.get(id=product_id)
+
+                    # Check stock for stockable products
+                    if product.product_type == "stockable":
+                        if product.stock_quantity <= 0:
+                            return Response(
+                                {
+                                    "error": f"Product '{product.name}' is out of stock! Please restock before selling."
+                                },
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+
+                        if quantity > product.stock_quantity:
+                            return Response(
+                                {
+                                    "error": f"Insufficient stock for '{product.name}'! Available: {product.stock_quantity}, Requested: {quantity}"
+                                },
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+
+                except Product.DoesNotExist:
+                    return Response(
+                        {"error": "Product not found"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
                 sale = serializer.save()
                 logger.info(f"Sale created successfully: {sale}")
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -170,10 +256,10 @@ def dashboard_data(request):
         monthly_sales = Sale.objects.filter(created_at__date__gte=start_of_month)
         monthly_total = monthly_sales.aggregate(total=Sum("total_amount"))["total"] or 0
 
-        # Category breakdown
+        # Category breakdown (using product category)
         category_breakdown = (
             Sale.objects.filter(created_at__date=today)
-            .values("category__name")
+            .values("product__category__name")
             .annotate(total=Sum("total_amount"), count=Count("id"))
             .order_by("-total")
         )
