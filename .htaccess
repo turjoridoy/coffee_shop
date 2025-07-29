@@ -1,7 +1,8 @@
 RewriteEngine On
 
-# Enable Python
-AddHandler wsgi-script .py
+# Enable Python CGI
+AddHandler cgi-script .py
+Options +ExecCGI
 
 # Handle static files
 RewriteCond %{REQUEST_FILENAME} !-f
