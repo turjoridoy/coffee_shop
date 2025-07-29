@@ -99,7 +99,7 @@ DATABASES = {
         "NAME": "u183730229_coffee_shop",
         "USER": "u183730229_root",
         "PASSWORD": "NtZYc@cuCz6@",
-        "HOST": "localhost",
+        "HOST": "127.0.0.1",  # Use IP instead of localhost
         "PORT": "3306",
         "OPTIONS": {
             "charset": "utf8mb4",
