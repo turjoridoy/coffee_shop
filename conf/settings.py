@@ -28,7 +28,13 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = ["*"]  # Configure this properly for production
+ALLOWED_HOSTS = [
+    "teatime.ludwigpfeiffer.com.bd",
+    "ludwigpfeiffer.com.bd",
+    "localhost",
+    "127.0.0.1",
+    "*",
+]
 
 
 # Application definition
@@ -91,6 +97,7 @@ WSGI_APPLICATION = "conf.wsgi.application"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 import pymysql
+
 pymysql.install_as_MySQLdb()
 
 DATABASES = {
@@ -149,11 +156,8 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
-# For subdirectory deployment
-FORCE_SCRIPT_NAME = '/coffee_shop'
-
-# Add subdirectory to static URL
-STATIC_URL = '/coffee_shop/static/'
+# Static files URL (no subdirectory needed for dedicated domain)
+STATIC_URL = "/static/"
 
 # Static files configuration - using Django's default storage
 
