@@ -3,34 +3,166 @@ let isOnline = navigator.onLine;
 
 // PWA Installation
 let deferredPrompt;
+let installBannerShown = false;
+
+// Check if app is already installed
+function isAppInstalled() {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+}
+
+// Show installation banner for first-time visitors
+function showInstallBanner() {
+    if (isAppInstalled() || installBannerShown) return;
+
+    // Check if user has dismissed the banner before
+    const bannerDismissed = localStorage.getItem('installBannerDismissed');
+    if (bannerDismissed) return;
+
+    // Show banner after a short delay
+    setTimeout(() => {
+        const banner = document.getElementById('installBanner');
+        if (banner) {
+            banner.style.display = 'block';
+            installBannerShown = true;
+        }
+    }, 2000);
+}
 
 window.addEventListener('beforeinstallprompt', (e) => {
     // Prevent Chrome 67 and earlier from automatically showing the prompt
     e.preventDefault();
     // Stash the event so it can be triggered later
     deferredPrompt = e;
+
     // Show the install button
     const installButton = document.getElementById('installButton');
     if (installButton) {
         installButton.style.display = 'block';
     }
+
+    // Show banner for first-time visitors
+    showInstallBanner();
 });
 
 // Handle install button click
 document.addEventListener('DOMContentLoaded', function () {
     const installButton = document.getElementById('installButton');
+    const bannerInstallButton = document.getElementById('bannerInstallButton');
+    const bannerDismissButton = document.getElementById('bannerDismissButton');
+
+    // Handle main install button
     if (installButton) {
         installButton.addEventListener('click', async () => {
             if (deferredPrompt) {
-                // Show the install prompt
-                deferredPrompt.prompt();
-                // Wait for the user to respond to the prompt
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response to the install prompt: ${outcome}`);
-                // Clear the deferredPrompt variable
-                deferredPrompt = null;
-                // Hide the install button
-                installButton.style.display = 'none';
+                await triggerInstall();
+            }
+        });
+    }
+
+    // Handle banner install button
+    if (bannerInstallButton) {
+        bannerInstallButton.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                await triggerInstall();
+            }
+            hideInstallBanner();
+        });
+    }
+
+    // Handle banner dismiss button
+    if (bannerDismissButton) {
+        bannerDismissButton.addEventListener('click', () => {
+            hideInstallBanner();
+        });
+    }
+
+    // Show banner for first-time visitors
+    showInstallBanner();
+});
+
+// Trigger installation
+async function triggerInstall() {
+    if (!deferredPrompt) return;
+
+    try {
+        // Show the install prompt
+        deferredPrompt.prompt();
+        // Wait for the user to respond to the prompt
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+
+        if (outcome === 'accepted') {
+            showToast('App installed successfully! 🎉', 'success');
+            // Hide all install elements
+            hideAllInstallElements();
+        } else {
+            showToast('Installation cancelled', 'warning');
+        }
+
+        // Clear the deferredPrompt variable
+        deferredPrompt = null;
+    } catch (error) {
+        console.error('Installation failed:', error);
+        showToast('Installation failed. Please try again.', 'error');
+    }
+}
+
+// Hide installation banner
+function hideInstallBanner() {
+    const banner = document.getElementById('installBanner');
+    if (banner) {
+        banner.style.display = 'none';
+    }
+    // Remember that user dismissed the banner
+    localStorage.setItem('installBannerDismissed', 'true');
+}
+
+// Hide all install elements
+function hideAllInstallElements() {
+    const installButton = document.getElementById('installButton');
+    const banner = document.getElementById('installBanner');
+
+    if (installButton) {
+        installButton.style.display = 'none';
+    }
+
+    if (banner) {
+        banner.style.display = 'none';
+    }
+}
+
+// Handle app installed event
+window.addEventListener('appinstalled', (evt) => {
+    console.log('App was installed');
+    showToast('App installed successfully! 🎉', 'success');
+    hideAllInstallElements();
+});
+
+// Installation guide functions
+function showInstallGuide() {
+    const modal = document.getElementById('installGuideModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeInstallGuide() {
+    const modal = document.getElementById('installGuideModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// Close modal when clicking outside
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('installGuideModal');
+    if (modal) {
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) {
+                closeInstallGuide();
             }
         });
     }
@@ -69,7 +201,43 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Product selection event listener
     document.getElementById('saleProduct').addEventListener('change', onProductSelect);
+
+    // Check if app is installed and show appropriate UI
+    if (isAppInstalled()) {
+        document.body.classList.add('pwa-installed');
+        hideAllInstallElements();
+    }
+
+    // Show installation instructions for mobile users
+    if (isMobileDevice() && !isAppInstalled()) {
+        showMobileInstallInstructions();
+    }
 });
+
+// Check if device is mobile
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// Show mobile installation instructions
+function showMobileInstallInstructions() {
+    // This will be called for mobile users who haven't installed the app
+    console.log('Mobile device detected - showing install instructions');
+
+    // Add a subtle hint in the header
+    const header = document.querySelector('.app-header');
+    if (header) {
+        const installHint = document.createElement('div');
+        installHint.style.cssText = 'position: absolute; top: 50%; right: 20px; transform: translateY(-50%); font-size: 0.8rem; opacity: 0.8;';
+        installHint.innerHTML = '📱 Tap menu → "Add to Home Screen"';
+        header.appendChild(installHint);
+
+        // Remove hint after 10 seconds
+        setTimeout(() => {
+            installHint.remove();
+        }, 10000);
+    }
+}
 
 // Load quick actions from API
 async function loadQuickActions() {

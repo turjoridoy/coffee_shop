@@ -21,45 +21,46 @@ def manifest(request):
     manifest_data = {
         "name": "Coffee Shop Manager",
         "short_name": "Coffee Shop",
-        "description": "Sales Management System for Coffee Shops",
+        "description": "Professional Sales Management System for Coffee Shops - Track sales, manage inventory, and generate reports",
         "start_url": "/",
         "display": "standalone",
         "background_color": "#ffffff",
         "theme_color": "#2c5aa0",
         "orientation": "portrait",
         "scope": "/",
-        "categories": ["business", "productivity"],
+        "categories": ["business", "productivity", "finance"],
         "lang": "en",
+        "prefer_related_applications": False,
         "icons": [
             {
                 "src": "/static/icons/icon-72x72.png",
                 "sizes": "72x72",
                 "type": "image/png",
-                "purpose": "any maskable",
+                "purpose": "any",
             },
             {
                 "src": "/static/icons/icon-96x96.png",
                 "sizes": "96x96",
                 "type": "image/png",
-                "purpose": "any maskable",
+                "purpose": "any",
             },
             {
                 "src": "/static/icons/icon-128x128.png",
                 "sizes": "128x128",
                 "type": "image/png",
-                "purpose": "any maskable",
+                "purpose": "any",
             },
             {
                 "src": "/static/icons/icon-144x144.png",
                 "sizes": "144x144",
                 "type": "image/png",
-                "purpose": "any maskable",
+                "purpose": "any",
             },
             {
                 "src": "/static/icons/icon-152x152.png",
                 "sizes": "152x152",
                 "type": "image/png",
-                "purpose": "any maskable",
+                "purpose": "any",
             },
             {
                 "src": "/static/icons/icon-192x192.png",
@@ -71,7 +72,7 @@ def manifest(request):
                 "src": "/static/icons/icon-384x384.png",
                 "sizes": "384x384",
                 "type": "image/png",
-                "purpose": "any maskable",
+                "purpose": "any",
             },
             {
                 "src": "/static/icons/icon-512x512.png",
@@ -95,6 +96,13 @@ def manifest(request):
                 "url": "/?tab=today",
                 "icons": [{"src": "/static/icons/icon-96x96.png", "sizes": "96x96"}],
             },
+            {
+                "name": "Dashboard",
+                "short_name": "Dashboard",
+                "description": "View sales dashboard",
+                "url": "/?tab=dashboard",
+                "icons": [{"src": "/static/icons/icon-96x96.png", "sizes": "96x96"}],
+            },
         ],
     }
 
@@ -102,13 +110,30 @@ def manifest(request):
 
 
 @login_required(login_url="/login/")
+def browserconfig(request):
+    """Serve browserconfig.xml for Windows tiles"""
+    from django.http import HttpResponse
+    browserconfig_content = """<?xml version="1.0" encoding="utf-8"?>
+<browserconfig>
+    <msapplication>
+        <tile>
+            <square150x150logo src="/static/icons/icon-144x144.png"/>
+            <square310x310logo src="/static/icons/icon-512x512.png"/>
+            <TileColor>#2c5aa0</TileColor>
+        </tile>
+    </msapplication>
+</browserconfig>"""
+    return HttpResponse(browserconfig_content, content_type="application/xml")
+
+
+@login_required(login_url="/login/")
 def service_worker(request):
     """Serve service worker"""
     service_worker_content = """
 // Coffee Shop Manager Service Worker
-const CACHE_NAME = 'coffee-shop-v2';
-const STATIC_CACHE = 'static-v2';
-const DYNAMIC_CACHE = 'dynamic-v2';
+const CACHE_NAME = 'coffee-shop-v3';
+const STATIC_CACHE = 'static-v3';
+const DYNAMIC_CACHE = 'dynamic-v3';
 
 const urlsToCache = [
     '/',
@@ -126,17 +151,23 @@ const urlsToCache = [
 
 // Install event
 self.addEventListener('install', event => {
+    console.log('Service Worker installing...');
     event.waitUntil(
         caches.open(STATIC_CACHE)
             .then(cache => {
                 console.log('Opened cache');
                 return cache.addAll(urlsToCache);
             })
+            .then(() => {
+                console.log('Service Worker installed successfully');
+                return self.skipWaiting();
+            })
     );
 });
 
 // Activate event
 self.addEventListener('activate', event => {
+    console.log('Service Worker activating...');
     event.waitUntil(
         caches.keys().then(cacheNames => {
             return Promise.all(
@@ -147,6 +178,9 @@ self.addEventListener('activate', event => {
                     }
                 })
             );
+        }).then(() => {
+            console.log('Service Worker activated');
+            return self.clients.claim();
         })
     );
 });
@@ -154,26 +188,26 @@ self.addEventListener('activate', event => {
 // Fetch event
 self.addEventListener('fetch', event => {
     const { request } = event;
+    const url = new URL(request.url);
 
     // Skip non-GET requests
     if (request.method !== 'GET') {
         return;
     }
 
-    // Handle API requests
-    if (request.url.includes('/api/')) {
+    // Handle API requests with network-first strategy
+    if (url.pathname.startsWith('/api/')) {
         event.respondWith(
             fetch(request)
                 .then(response => {
-                    // Clone the response
-                    const responseClone = response.clone();
-
-                    // Cache the response
-                    caches.open(DYNAMIC_CACHE)
-                        .then(cache => {
-                            cache.put(request, responseClone);
-                        });
-
+                    // Only cache successful responses
+                    if (response && response.status === 200) {
+                        const responseClone = response.clone();
+                        caches.open(DYNAMIC_CACHE)
+                            .then(cache => {
+                                cache.put(request, responseClone);
+                            });
+                    }
                     return response;
                 })
                 .catch(() => {
@@ -184,31 +218,66 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // Handle static assets
-    event.respondWith(
-        caches.match(request)
-            .then(response => {
-                if (response) {
-                    return response;
-                }
-
-                return fetch(request)
-                    .then(response => {
-                        // Check if we received a valid response
-                        if (!response || response.status !== 200 || response.type !== 'basic') {
+    // Handle static assets with cache-first strategy
+    if (url.pathname.startsWith('/static/')) {
+        event.respondWith(
+            caches.match(request)
+                .then(response => {
+                    if (response) {
+                        return response;
+                    }
+                    return fetch(request)
+                        .then(response => {
+                            if (response && response.status === 200) {
+                                const responseToCache = response.clone();
+                                caches.open(STATIC_CACHE)
+                                    .then(cache => {
+                                        cache.put(request, responseToCache);
+                                    });
+                            }
                             return response;
-                        }
+                        });
+                })
+        );
+        return;
+    }
 
-                        // Clone the response
-                        const responseToCache = response.clone();
-
+    // Handle HTML pages with network-first strategy
+    if (request.headers.get('accept').includes('text/html')) {
+        event.respondWith(
+            fetch(request)
+                .then(response => {
+                    if (response && response.status === 200) {
+                        const responseClone = response.clone();
                         caches.open(DYNAMIC_CACHE)
                             .then(cache => {
-                                cache.put(request, responseToCache);
+                                cache.put(request, responseClone);
                             });
+                    }
+                    return response;
+                })
+                .catch(() => {
+                    return caches.match(request);
+                })
+        );
+        return;
+    }
 
-                        return response;
-                    });
+    // Default: try network first, fallback to cache
+    event.respondWith(
+        fetch(request)
+            .then(response => {
+                if (response && response.status === 200) {
+                    const responseClone = response.clone();
+                    caches.open(DYNAMIC_CACHE)
+                        .then(cache => {
+                            cache.put(request, responseClone);
+                        });
+                }
+                return response;
+            })
+            .catch(() => {
+                return caches.match(request);
             })
     );
 });
@@ -220,9 +289,53 @@ self.addEventListener('sync', event => {
     }
 });
 
+// Push notifications (for future use)
+self.addEventListener('push', event => {
+    if (event.data) {
+        const data = event.data.json();
+        const options = {
+            body: data.body || 'New notification from Coffee Shop Manager',
+            icon: '/static/icons/icon-192x192.png',
+            badge: '/static/icons/icon-72x72.png',
+            vibrate: [100, 50, 100],
+            data: {
+                dateOfArrival: Date.now(),
+                primaryKey: 1
+            },
+            actions: [
+                {
+                    action: 'explore',
+                    title: 'View',
+                    icon: '/static/icons/icon-72x72.png'
+                },
+                {
+                    action: 'close',
+                    title: 'Close',
+                    icon: '/static/icons/icon-72x72.png'
+                }
+            ]
+        };
+
+        event.waitUntil(
+            self.registration.showNotification('Coffee Shop Manager', options)
+        );
+    }
+});
+
+// Notification click handler
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+
+    if (event.action === 'explore') {
+        event.waitUntil(
+            clients.openWindow('/')
+        );
+    }
+});
+
 function doBackgroundSync() {
-    // Handle offline data sync
     console.log('Background sync triggered');
+    // Future: Sync offline data when connection is restored
 }
 """
 
