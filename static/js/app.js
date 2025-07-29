@@ -122,6 +122,7 @@ function hideInstallBanner() {
 function hideAllInstallElements() {
     const installButton = document.getElementById('installButton');
     const banner = document.getElementById('installBanner');
+    const installGuideButton = document.getElementById('installGuideButton');
 
     if (installButton) {
         installButton.style.display = 'none';
@@ -129,6 +130,10 @@ function hideAllInstallElements() {
 
     if (banner) {
         banner.style.display = 'none';
+    }
+
+    if (installGuideButton) {
+        installGuideButton.style.display = 'none';
     }
 }
 
