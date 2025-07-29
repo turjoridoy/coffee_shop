@@ -1,0 +1,20 @@
+RewriteEngine On
+
+# Enable Python
+AddHandler wsgi-script .py
+
+# Handle static files
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_URI} ^/static/
+RewriteRule ^static/(.*)$ /staticfiles/$1 [L]
+
+# Handle PWA files
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^manifest\.json$ /manifest.json [L]
+RewriteRule ^service-worker\.js$ /service-worker.js [L]
+RewriteRule ^browserconfig\.xml$ /browserconfig.xml [L]
+
+# Handle Django URLs
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ passenger_wsgi.py/$1 [QSA,L]
