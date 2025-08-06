@@ -1,4 +1,4 @@
-# ☕ Coffee Shop Manager
+# ☕ Tea Time
 
 A Progressive Web App (PWA) for managing coffee shop sales, built with Django and modern web technologies.
 

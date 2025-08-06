@@ -100,18 +100,24 @@ import pymysql
 
 pymysql.install_as_MySQLdb()
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.mysql",
+#         "NAME": "u183730229_coffee_shop",
+#         "USER": "u183730229_root",
+#         "PASSWORD": "NtZYc@cuCz6@",
+#         "HOST": "127.0.0.1",  # Use IP instead of localhost
+#         "PORT": "3306",
+#         "OPTIONS": {
+#             "charset": "utf8mb4",
+#             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+#         },
+#     }
+# }
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": "u183730229_coffee_shop",
-        "USER": "u183730229_root",
-        "PASSWORD": "NtZYc@cuCz6@",
-        "HOST": "127.0.0.1",  # Use IP instead of localhost
-        "PORT": "3306",
-        "OPTIONS": {
-            "charset": "utf8mb4",
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',  # The database file path
     }
 }
 

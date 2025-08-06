@@ -18,7 +18,7 @@ def dashboard(request):
 def manifest(request):
     """Serve PWA manifest - no login required for PWA to work"""
     manifest_data = {
-        "name": "Coffee Shop Manager",
+        "name": "Tea Time",
         "short_name": "Coffee Shop",
         "description": "Professional Sales Management System for Coffee Shops - Track sales, manage inventory, and generate reports",
         "start_url": "/",
@@ -111,6 +111,7 @@ def manifest(request):
 def browserconfig(request):
     """Serve browserconfig.xml for Windows tiles - no login required"""
     from django.http import HttpResponse
+
     browserconfig_content = """<?xml version="1.0" encoding="utf-8"?>
 <browserconfig>
     <msapplication>
@@ -127,7 +128,7 @@ def browserconfig(request):
 def service_worker(request):
     """Serve service worker - no login required for PWA to work"""
     service_worker_content = """
-// Coffee Shop Manager Service Worker
+// Tea Time Service Worker
 const CACHE_NAME = 'coffee-shop-v3';
 const STATIC_CACHE = 'static-v3';
 const DYNAMIC_CACHE = 'dynamic-v3';
@@ -291,7 +292,7 @@ self.addEventListener('push', event => {
     if (event.data) {
         const data = event.data.json();
         const options = {
-            body: data.body || 'New notification from Coffee Shop Manager',
+            body: data.body || 'New notification from Tea Time',
             icon: '/static/icons/icon-192x192.png',
             badge: '/static/icons/icon-72x72.png',
             vibrate: [100, 50, 100],
@@ -314,7 +315,7 @@ self.addEventListener('push', event => {
         };
 
         event.waitUntil(
-            self.registration.showNotification('Coffee Shop Manager', options)
+            self.registration.showNotification('Tea Time', options)
         );
     }
 });
@@ -337,6 +338,7 @@ function doBackgroundSync() {
 """
 
     from django.http import HttpResponse
+
     return HttpResponse(service_worker_content, content_type="application/javascript")
 
 

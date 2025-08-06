@@ -199,6 +199,6 @@ class SaleAdmin(admin.ModelAdmin):
 
 
 # Customize admin site
-admin.site.site_header = "Coffee Shop Manager Admin"
+admin.site.site_header = "Tea Time Admin"
 admin.site.site_title = "Coffee Shop Admin"
 admin.site.index_title = "Welcome to Coffee Shop Management System"

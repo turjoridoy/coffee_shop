@@ -1,0 +1,25 @@
+services:
+  coffee-shop:
+    build:
+      context: .
+    container_name: coffee-shop-container
+    ports:
+      - "8050:8050"
+    volumes:
+      - .:/app
+    command: >
+      sh -c "python manage.py runserver 0.0.0.0:8050"
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: "0.25"
+    #       memory: 512M
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8050"]
+    #   interval: 150s
+    #   timeout: 15s
+    #   retries: 5
+  # dbadmin:
+  #   image: mcr.microsoft.com/azure-cli
+  #   container_name: shrimp-genetics-dbadmin
+  #   command: ["bash", "-c", "sleep infinity"]

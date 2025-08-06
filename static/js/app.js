@@ -1,4 +1,4 @@
-// Coffee Shop Manager - Sales Focused PWA
+// Tea Time - Sales Focused PWA
 let isOnline = navigator.onLine;
 
 // PWA Installation
